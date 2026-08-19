@@ -26,6 +26,9 @@ class Task(TaskBase, table=True):
     completed_at: datetime | None = None
     parent_id: int | None = Field(default=None, foreign_key="tasks.id")
 
+    parent: Task = Relationship(back_populates="children")
+    children: list["Task"] | None = Relationship(back_populates="parent")
+
 
 class TaskInsert(TaskBase):
     parent_id: int | None = None
