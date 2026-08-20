@@ -4,6 +4,7 @@ from datetime import datetime, UTC
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import event
+from pydantic import BaseModel
 
 
 # {{{ Models
@@ -11,13 +12,12 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-# TODO: modify the schema, to have tasks and children tasks, that way, i can create the relationships that will update the status of the parent when completing all the children tasks. Do not create another table, but rather have the same model reference itself.
-# TODO: consider adding a TaskPublic model to define the retuned data, Not sure if really needed
 class TaskBase(SQLModel):
     body: str
     extra_details: str | None = None
 
 
+# TODO: add priority attribute, to be able to sort later on in the get_taks_tree function.
 class Task(TaskBase, table=True):
     __tablename__ = "tasks"  # type: ignore
 
@@ -49,8 +49,15 @@ class TaskUpdateBody(SQLModel):
     extra_details: str | None = None
 
 
-class TaskPubic(TaskBase):
+class TaskTreeNode(TaskBase):
     id: int
+    is_completed: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    completed_at: datetime | None = None
+    parent_id: int | None = None
+
+    children: list["TaskTreeNode"] = Field(default_factory=list)
 
 
 # }}}
@@ -159,6 +166,43 @@ async def get_taks(session: SessionDep):
     return query
 
 
+# TODO: create a sorting function to retunr the ordered tree. Refer to the models before this.
+@app.get("/tasks/tree/", response_model=list[TaskTreeNode])
+async def get_taks_tree(session: SessionDep):
+    flat_tasks = session.exec(select(Task)).all()
+
+    nodes = {
+        task.id: TaskTreeNode(
+            id=task.id,
+            body=task.body,
+            extra_details=task.extra_details,
+            is_completed=task.is_completed,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+            completed_at=task.completed_at,
+            parent_id=task.parent_id,
+            children=[],
+        )
+        for task in flat_tasks
+        if task.id is not None
+    }
+
+    roots = []
+    for task in flat_tasks:
+        if task.id is None:
+            continue
+
+        node = nodes[task.id]
+
+        if task.parent_id is not None and task.parent_id in nodes:
+            parent_node = nodes[task.parent_id]
+            parent_node.children.append(node)
+        else:
+            roots.append(node)
+
+    return roots
+
+
 @app.post("/tasks/")
 async def add_task(session: SessionDep, task: TaskInsert):
     new_task = Task.model_validate(task)
@@ -180,7 +224,6 @@ async def delete_task(session: SessionDep, task_id: int):
     return {"deleted": True}
 
 
-# TODO: missing logic to make it so that when i mark the parent task as completed, all the children tasks also get completed.
 @app.patch("/tasks/{task_id}/completion")
 async def update_completed(
     session: SessionDep, task_id: int, task: TaskUpdateCompleted

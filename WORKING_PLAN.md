@@ -8,7 +8,7 @@ The database and FastAPI backend should be the source of truth. Every client sho
 SQLite/Postgres DB -> FastAPI API -> Bubble Tea TUI / React frontend / future clients
 ```
 
-The original Markdown and Neovim sync idea is still possible, but it should come later. Bidirectional file sync creates harder problems around IDs, deletes, edits, conflicts, and preserving metadata.
+The original Markdown and Neovim sync idea is still possible, but it should come later.
 
 ## Current Backend State
 
@@ -20,25 +20,21 @@ The original Markdown and Neovim sync idea is still possible, but it should come
 
 ## Near-Term Backend Work
 
-1. Add public response models.
+- [x] Add client-friendly task responses.
 
-   Create models such as `TaskPublic`, `TaskCreate`, `TaskUpdate`, and `TaskCompletionUpdate` so clients do not depend directly on the database model.
+  Keep `GET /tasks/` as a flat list for now. Later, add something like `GET /tasks/tree` to return root tasks with nested children.
 
-2. Add client-friendly task responses.
+- [ ] Validate parent tasks on create.
 
-   Keep `GET /tasks/` as a flat list for now. Later, add something like `GET /tasks/tree` to return root tasks with nested children.
+  If a request includes `parent_id`, check that the parent exists before inserting the child task. Return a clean `404` if it does not.
 
-3. Validate parent tasks on create.
+- [ ] Add Alembic.
 
-   If a request includes `parent_id`, check that the parent exists before inserting the child task. Return a clean `404` if it does not.
+  Set up migrations before the schema changes much more. This avoids manually recreating `tasks.db` whenever columns or relationships change.
 
-4. Add Alembic.
+- [x] Harden completion behavior.
 
-   Set up migrations before the schema changes much more. This avoids manually recreating `tasks.db` whenever columns or relationships change.
-
-5. Harden completion behavior.
-
-   Make parent/child completion updates predictable. Eventually consider recursive behavior for deeper task trees.
+  Make parent/child completion updates predictable. Eventually consider recursive behavior for deeper task trees.
 
 ## Client Plan
 
@@ -75,10 +71,10 @@ The original Markdown and Neovim sync idea is still possible, but it should come
 
 ## Suggested Order
 
-1. Clean up backend response/request models.
-2. Add Alembic migrations.
-3. Build the Bubble Tea MVP.
-4. Build the simple React frontend.
-5. Deploy the API somewhere reachable.
-6. Add authentication before exposing personal tasks publicly.
-7. Revisit Markdown/Neovim sync after the core workflow works.
+- [ ] Clean up backend response/request models.
+- [ ] Add Alembic migrations.
+- [ ] Build the Bubble Tea MVP.
+- [ ] Build the simple React frontend.
+- [ ] Deploy the API somewhere reachable.
+- [ ] Add authentication before exposing personal tasks publicly.
+- [ ] Revisit Markdown/Neovim sync after the core workflow works.
