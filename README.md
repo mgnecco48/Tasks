@@ -1,4 +1,4 @@
-# Tasks Tracker
+# Boring Tasks Tracker :)
 
 This is a boring idea but very useful to understand a few concepts i have been trying to learn. It also kind of solves a real "problem" i have myself. I like to use the terminal and Neovim. I have a whole setup to enjoy writing tasks, notes and code there. If i have my computer available, i prefer to write my daily todo lists there since it looks cool and keeps me in the same setup i already enjoy and know.
 
@@ -10,7 +10,10 @@ Even though there are more tools that i could just use straight away, I find thi
 
 # How does it work?
 
-- Basically, the notes are written in a `markdown` file with Neovim.
+- Basically, the notes are written in a `markdown` file with Neovim. [> [!NOTE]
+
+> Right now, this idea adds a lot of complexity, as i will also have to manage the state of the local file and write a Neovim plugin. I decided to create a TUI that can act as a client to the backend instead to start testing and iterating]
+
 - On a write event, I will trigger an action to parse the markdown, and identify the individual tasks. That will then check the database to add new tasks, update existing ones or delete the ones that have been removed from the file. The completion status can also be updated by ticking the boxes.
 - On the other side, by visiting the corresponding URL, i could see the same list of tasks in my phone or any other device via a web interphase. I can toggle the task's completion status, add new ones or modify existing ones. This should in turn also update the same database to maintain consistency.
 - Last, i should also be able to somehow refresh my local file when I am working in my main machine, and the markdown should get generated from the database, using it as the only source of truth.
