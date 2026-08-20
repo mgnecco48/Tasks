@@ -4,7 +4,6 @@ from datetime import datetime, UTC
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import event
-from pydantic import BaseModel
 
 
 # {{{ Models
@@ -15,9 +14,9 @@ def utc_now() -> datetime:
 class TaskBase(SQLModel):
     body: str
     extra_details: str | None = None
+    priority: int = Field(default=3, ge=1, le=3)
 
 
-# TODO: add priority attribute, to be able to sort later on in the get_taks_tree function.
 class Task(TaskBase, table=True):
     __tablename__ = "tasks"  # type: ignore
 
@@ -44,9 +43,10 @@ class TaskUpdateCompleted(SQLModel):
     is_completed: bool
 
 
-class TaskUpdateBody(SQLModel):
-    body: str
+class TaskUpdate(SQLModel):
+    body: str | None = None
     extra_details: str | None = None
+    priority: int | None = Field(default=3, ge=1, le=3)
 
 
 class TaskTreeNode(TaskBase):
@@ -55,6 +55,7 @@ class TaskTreeNode(TaskBase):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     completed_at: datetime | None = None
+    priority: int = Field(default=3, ge=1, le=3)
     parent_id: int | None = None
 
     children: list["TaskTreeNode"] = Field(default_factory=list)
@@ -161,14 +162,13 @@ def get_root():
 
 
 @app.get("/tasks/")
-async def get_taks(session: SessionDep):
+async def get_all_tasks(session: SessionDep):
     query = session.exec(select(Task)).all()
     return query
 
 
-# TODO: create a sorting function to retunr the ordered tree. Refer to the models before this.
 @app.get("/tasks/tree/", response_model=list[TaskTreeNode])
-async def get_taks_tree(session: SessionDep):
+async def get_task_tree(session: SessionDep):
     flat_tasks = session.exec(select(Task)).all()
 
     nodes = {
@@ -181,6 +181,7 @@ async def get_taks_tree(session: SessionDep):
             updated_at=task.updated_at,
             completed_at=task.completed_at,
             parent_id=task.parent_id,
+            priority=task.priority,
             children=[],
         )
         for task in flat_tasks
@@ -200,12 +201,35 @@ async def get_taks_tree(session: SessionDep):
         else:
             roots.append(node)
 
+    def recursive_sort(tasks: list["TaskTreeNode"]):
+        tasks.sort(
+            key=lambda task: (
+                task.is_completed,
+                task.priority,
+                task.created_at,
+            )
+        )
+
+        for task in tasks:
+            recursive_sort(task.children)
+
+    recursive_sort(roots)
+
     return roots
 
 
 @app.post("/tasks/")
 async def add_task(session: SessionDep, task: TaskInsert):
+    if task.parent_id is not None:
+        parent = session.get(Task, task.parent_id)
+        if parent is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Parent task with id {task.parent_id} is not stored in the database",
+            )
+
     new_task = Task.model_validate(task)
+
     session.add(new_task)
     session.commit()
     session.refresh(new_task)
@@ -259,12 +283,13 @@ async def update_completed(
 
 
 @app.patch("/tasks/{task_id}/")
-async def update_task(session: SessionDep, task_id: int, task: TaskUpdateBody):
+async def update_task(session: SessionDep, task_id: int, task: TaskUpdate):
     task_to_update = session.get(Task, task_id)
     if not task_to_update:
         raise HTTPException(status_code=404, detail="Task not found")
     new_data = task.model_dump(exclude_unset=True)
     task_to_update.sqlmodel_update(new_data)
+    task_to_update.updated_at = utc_now()
 
     session.add(task_to_update)
     session.commit()
