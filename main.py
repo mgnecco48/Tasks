@@ -1,8 +1,9 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from sqlmodel import SQLModel, create_engine, Session, select, Field, Relationship
 from datetime import datetime, UTC
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import event
 
 
 # {{{ Models
@@ -11,6 +12,7 @@ def utc_now() -> datetime:
 
 
 # TODO: modify the schema, to have tasks and children tasks, that way, i can create the relationships that will update the status of the parent when completing all the children tasks. Do not create another table, but rather have the same model reference itself.
+# TODO: consider adding a TaskPublic model to define the retuned data, Not sure if really needed
 class TaskBase(SQLModel):
     body: str
     extra_details: str | None = None
@@ -24,10 +26,14 @@ class Task(TaskBase, table=True):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     completed_at: datetime | None = None
-    parent_id: int | None = Field(default=None, foreign_key="tasks.id")
+    parent_id: int | None = Field(
+        default=None, foreign_key="tasks.id", ondelete="CASCADE"
+    )
 
-    parent: Task = Relationship(back_populates="children")
-    children: list["Task"] | None = Relationship(back_populates="parent")
+    parent: Optional["Task"] = Relationship(
+        back_populates="children", sa_relationship_kwargs={"remote_side": "Task.id"}
+    )
+    children: list["Task"] = Relationship(back_populates="parent", cascade_delete=True)
 
 
 class TaskInsert(TaskBase):
@@ -43,12 +49,24 @@ class TaskUpdateBody(SQLModel):
     extra_details: str | None = None
 
 
+class TaskPubic(TaskBase):
+    id: int
+
+
 # }}}
 
 # {{{ SQLite setup # TODO: Need to create the databases with something like Alembic, so that when i add a column to the model it automatically updates the databse.
 sqlite_filename = "tasks.db"
 sqlite_url = f"sqlite:///{sqlite_filename}"
 engine = create_engine(sqlite_url, echo=True)
+
+
+# this enables the foreign key support for all connections for sqlite. Just copied it from the internet though.
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, _connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 def create_everything():
@@ -162,7 +180,7 @@ async def delete_task(session: SessionDep, task_id: int):
     return {"deleted": True}
 
 
-# TODO: make it so that when a root task is marked as complete, all the child tasks aswell. Also, when the main task is marked as incomplete, then the children ones get marked as incompleted.
+# TODO: missing logic to make it so that when i mark the parent task as completed, all the children tasks also get completed.
 @app.patch("/tasks/{task_id}/completion")
 async def update_completed(
     session: SessionDep, task_id: int, task: TaskUpdateCompleted
@@ -170,13 +188,26 @@ async def update_completed(
     task_to_update = session.get(Task, task_id)
 
     if task_to_update is None:
-        raise HTTPException(status_code=404, detail="Task not found§")
+        raise HTTPException(status_code=404, detail="Task not found")
 
     task_to_update.is_completed = task.is_completed
 
     now = utc_now()
+
     task_to_update.completed_at = now if task_to_update.is_completed else None
     task_to_update.updated_at = now
+
+    parent = task_to_update.parent
+    if parent is not None:
+        parent.is_completed = all(child.is_completed for child in parent.children)
+        parent.completed_at = now if parent.is_completed else None
+        parent.updated_at = now
+        session.add(parent)
+    else:
+        for child in task_to_update.children:
+            child.is_completed = task_to_update.is_completed
+            child.completed_at = now if task_to_update.is_completed else None
+            child.updated_at = now
 
     session.add(task_to_update)
     session.commit()
