@@ -35,6 +35,16 @@ class Task(TaskBase, table=True):
     children: list["Task"] = Relationship(back_populates="parent", cascade_delete=True)
 
 
+class TaskPublic(TaskBase):
+    id: int
+    is_completed: bool
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+    parent_id: int | None
+
+
 class TaskInsert(TaskBase):
     parent_id: int | None = None
 
@@ -162,7 +172,7 @@ def get_root():
 
 
 @app.get("/tasks/")
-async def get_all_tasks(session: SessionDep):
+async def get_all_tasks(session: SessionDep, response_model=TaskPublic):
     query = session.exec(select(Task)).all()
     return query
 
@@ -219,7 +229,7 @@ async def get_task_tree(session: SessionDep):
 
 
 @app.post("/tasks/")
-async def add_task(session: SessionDep, task: TaskInsert):
+async def add_task(session: SessionDep, task: TaskInsert, response_model=TaskPublic):
     if task.parent_id is not None:
         parent = session.get(Task, task.parent_id)
         if parent is None:
@@ -237,7 +247,7 @@ async def add_task(session: SessionDep, task: TaskInsert):
 
 
 @app.delete("/tasks/{task_id}/")
-async def delete_task(session: SessionDep, task_id: int):
+async def delete_task(session: SessionDep, task_id: int, response_model=TaskPublic):
     task_to_delete = session.get(Task, task_id)
     if not task_to_delete:
         raise HTTPException(
@@ -250,7 +260,10 @@ async def delete_task(session: SessionDep, task_id: int):
 
 @app.patch("/tasks/{task_id}/completion")
 async def update_completed(
-    session: SessionDep, task_id: int, task: TaskUpdateCompleted
+    session: SessionDep,
+    task_id: int,
+    task: TaskUpdateCompleted,
+    response_model=TaskPublic,
 ):
     task_to_update = session.get(Task, task_id)
 
@@ -283,7 +296,9 @@ async def update_completed(
 
 
 @app.patch("/tasks/{task_id}/")
-async def update_task(session: SessionDep, task_id: int, task: TaskUpdate):
+async def update_task(
+    session: SessionDep, task_id: int, task: TaskUpdate, response_model=TaskPublic
+):
     task_to_update = session.get(Task, task_id)
     if not task_to_update:
         raise HTTPException(status_code=404, detail="Task not found")
