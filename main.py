@@ -246,7 +246,7 @@ async def add_task(session: SessionDep, task: TaskInsert):
     return new_task
 
 
-@app.delete("/tasks/{task_id}/", response_model=TaskPublic)
+@app.delete("/tasks/{task_id}/")
 async def delete_task(session: SessionDep, task_id: int):
     task_to_delete = session.get(Task, task_id)
     if not task_to_delete:
