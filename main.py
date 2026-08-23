@@ -56,7 +56,7 @@ class TaskUpdateCompleted(SQLModel):
 class TaskUpdate(SQLModel):
     body: str | None = None
     extra_details: str | None = None
-    priority: int | None = Field(default=3, ge=1, le=3)
+    priority: int | None = Field(ge=1, le=3)
 
 
 class TaskTreeNode(TaskBase):
@@ -171,8 +171,8 @@ def get_root():
     return {"Hello": "This is My app"}
 
 
-@app.get("/tasks/")
-async def get_all_tasks(session: SessionDep, response_model=TaskPublic):
+@app.get("/tasks/", response_model=list[TaskPublic])
+async def get_all_tasks(session: SessionDep):
     query = session.exec(select(Task)).all()
     return query
 
@@ -228,8 +228,8 @@ async def get_task_tree(session: SessionDep):
     return roots
 
 
-@app.post("/tasks/")
-async def add_task(session: SessionDep, task: TaskInsert, response_model=TaskPublic):
+@app.post("/tasks/", response_model=TaskPublic)
+async def add_task(session: SessionDep, task: TaskInsert):
     if task.parent_id is not None:
         parent = session.get(Task, task.parent_id)
         if parent is None:
@@ -246,8 +246,8 @@ async def add_task(session: SessionDep, task: TaskInsert, response_model=TaskPub
     return new_task
 
 
-@app.delete("/tasks/{task_id}/")
-async def delete_task(session: SessionDep, task_id: int, response_model=TaskPublic):
+@app.delete("/tasks/{task_id}/", response_model=TaskPublic)
+async def delete_task(session: SessionDep, task_id: int):
     task_to_delete = session.get(Task, task_id)
     if not task_to_delete:
         raise HTTPException(
@@ -258,12 +258,9 @@ async def delete_task(session: SessionDep, task_id: int, response_model=TaskPubl
     return {"deleted": True}
 
 
-@app.patch("/tasks/{task_id}/completion")
+@app.patch("/tasks/{task_id}/completion", response_model=TaskPublic)
 async def update_completed(
-    session: SessionDep,
-    task_id: int,
-    task: TaskUpdateCompleted,
-    response_model=TaskPublic,
+    session: SessionDep, task_id: int, task: TaskUpdateCompleted
 ):
     task_to_update = session.get(Task, task_id)
 
@@ -295,10 +292,8 @@ async def update_completed(
     return task_to_update
 
 
-@app.patch("/tasks/{task_id}/")
-async def update_task(
-    session: SessionDep, task_id: int, task: TaskUpdate, response_model=TaskPublic
-):
+@app.patch("/tasks/{task_id}/", response_model=TaskPublic)
+async def update_task(session: SessionDep, task_id: int, task: TaskUpdate):
     task_to_update = session.get(Task, task_id)
     if not task_to_update:
         raise HTTPException(status_code=404, detail="Task not found")
