@@ -12,8 +12,8 @@ Even though there are more tools that i could just use straight away, I find thi
 
 - Basically, the notes are written in a `markdown` file with Neovim.
 
-  > [!NOTE]
-  > Right now, this idea adds a lot of complexity, as i will also have to manage the state of the local file and write a Neovim plugin. I decided to create a TUI that can act as a client to the backend instead to start testing and iterating]
+> [!NOTE]
+> Right now, this idea adds a lot of complexity, as i will also have to manage the state of the local file and write a Neovim plugin. I decided to create a TUI that can act as a client to the backend instead to start testing and iterating
 
 - On a write event, I will trigger an action to parse the markdown, and identify the individual tasks. That will then check the database to add new tasks, update existing ones or delete the ones that have been removed from the file. The completion status can also be updated by ticking the boxes.
 - On the other side, by visiting the corresponding URL, i could see the same list of tasks in my phone or any other device via a web interphase. I can toggle the task's completion status, add new ones or modify existing ones. This should in turn also update the same database to maintain consistency.
