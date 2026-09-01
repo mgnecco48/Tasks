@@ -12,9 +12,9 @@ func (m model) childrenInsertView() string {
 		if m.cursor == i {
 			cursor = "\033[91m>\033[0m"
 		}
-		completed := ""
+		completed := nicePrint("", iconsStyle)
 		if row.task.IsCompleted {
-			completed = ""
+			completed = nicePrint("", iconsStyle)
 		}
 
 		if row.indent == 0 {
@@ -29,9 +29,9 @@ func (m model) childrenInsertView() string {
 
 	for _, row := range rows[parentPos+1:] {
 		cursor := " "
-		completed := ""
+		completed := nicePrint("", iconsStyle)
 		if row.task.IsCompleted {
-			completed = ""
+			completed = nicePrint("", iconsStyle)
 		}
 
 		if row.indent == 0 {
@@ -55,9 +55,9 @@ func (m model) normalView() string {
 			cursor = "\033[91m>\033[0m"
 		}
 
-		completed := ""
+		completed := nicePrint("", iconsStyle)
 		if row.task.IsCompleted {
-			completed = ""
+			completed = nicePrint("", iconsStyle)
 		}
 
 		if row.indent == 0 {

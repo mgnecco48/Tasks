@@ -10,7 +10,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	// "charm.land/lipgloss/v2"
 )
 
 const (
@@ -358,14 +357,16 @@ func (m model) View() tea.View {
 		insertingIcon = "\033[91m*\033[0m"
 	}
 
-	s := fmt.Sprintf("Today's Tasks: %s\n\n", insertingIcon)
+	s := fmt.Sprintf(nicePrint("Today's Tasks:", titleStyle)+"%s\n", insertingIcon)
 
 	if m.inserting == true && m.focusedParentId != nil {
 		s += m.childrenInsertView()
 		return tea.NewView(s)
 	} else {
 		s += m.normalView()
-		return tea.NewView(s)
+		v := tea.NewView(s)
+		v.AltScreen = true
+		return v
 	}
 
 }
@@ -373,9 +374,14 @@ func (m model) View() tea.View {
 func main() {
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
-		fmt.Print("There was a problem 😭")
+		fmt.Print("There was a problem 😭", err)
 		os.Exit(1)
 	}
 }
 
 // TODO: make it look nice with lipgloss, check other methods i could add (modify task?)
+// TODO: add edit functionality
+// TODO: Add priority funcitionality
+// TODO: Add Extra details lookup.
+// TODO: Add due dates.
+// TODO: Add multiple lists, need to fix the backend aswell to do this.
