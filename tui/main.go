@@ -16,6 +16,7 @@ const (
 	tree_url   string = "http://127.0.0.1:8000/tasks/tree"
 	create_url string = "http://127.0.0.1:8000/tasks/"
 	delete_url string = "http://127.0.0.1:8000/tasks/"
+	modify_url string = "http://127.0.0.1:8000/tasks/"
 )
 
 type model struct {
@@ -24,6 +25,7 @@ type model struct {
 	err             error
 	textInput       textinput.Model
 	inserting       bool
+	modifying       bool
 	focusedParentId *int
 }
 
@@ -84,6 +86,7 @@ type taskCompletionUpdatedMsg struct {
 // Updating completion command
 func updateTaskCompletion(id int, completed bool) tea.Cmd {
 	return func() tea.Msg {
+
 		body, err := json.Marshal(struct {
 			IsCompleted bool `json:"is_completed"`
 		}{
@@ -189,42 +192,50 @@ func deleteTask(taskId int) tea.Cmd {
 	}
 }
 
-// ======================================
+// Changing a task:
+func modifyTask(id int, newBody string) tea.Cmd {
+	return func() tea.Msg {
 
-type taskRow struct { // helper function and types to flatten the rows so the cursor and completion work individually.
-	task   *Task
-	indent int
-}
-
-func taskRows(tasks []Task, indent int) []taskRow {
-	rows := []taskRow{}
-
-	for i := range tasks {
-		rows = append(rows, taskRow{
-			task:   &tasks[i],
-			indent: indent,
+		body, err := json.Marshal(struct {
+			ID   int    `json:"id"`
+			Body string `json:"body"`
+		}{
+			ID:   id,
+			Body: newBody,
 		})
+		if err != nil {
+			return errMsg{err}
+		}
 
-		rows = append(rows, taskRows(tasks[i].Children, indent+1)...)
+		req, err := http.NewRequest(
+			http.MethodPatch,
+			fmt.Sprintf("http://127.0.0.1:8000/tasks/%d/", id),
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			return errMsg{err}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+
+		c := &http.Client{Timeout: 10 * time.Second}
+		resp, err := c.Do(req)
+		if err != nil {
+			return errMsg{err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return errMsg{fmt.Errorf("Could not modify the task:\nbody: %s, id: %d", newBody, id)}
+		}
+
+		return taskModifiedMsg{id: id, newBody: newBody}
 	}
-	return rows
 }
 
-// ======================================================
-
-func initialModel() model {
-	ti := textinput.New()
-	ti.Placeholder = "New Task"
-	ti.SetWidth(50)
-	return model{
-		tasks:     []Task{},
-		textInput: ti,
-		inserting: false,
-	}
-}
-
-func (m model) Init() tea.Cmd {
-	return getTasks
+type taskModifiedMsg struct {
+	id      int
+	newBody string
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -249,7 +260,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case taskCompletionUpdatedMsg:
-		return m, getTasks
+		return m, tea.Batch(tea.ClearScreen, getTasks)
 
 	case taskCompletionFailedMsg:
 		rows := taskRows(m.tasks, 0)
@@ -262,7 +273,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.err = msg.err
-		return m, nil
+		return m, tea.Batch(tea.ClearScreen)
 
 	case createTaskMsg:
 		return m, tea.Batch(tea.ClearScreen, getTasks)
@@ -270,10 +281,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case taskDeletedMsg:
 		return m, tea.Batch(tea.ClearScreen, getTasks)
 
+	case taskModifiedMsg:
+		return m, tea.Batch(tea.ClearScreen, getTasks)
+
 	case tea.KeyPressMsg:
 		rows := taskRows(m.tasks, 0)
 
-		if m.inserting {
+		if m.modifying {
+			switch msg.String() {
+			case "enter":
+				id := rows[m.cursor].task.Id
+				newBody := m.textInput.Value()
+				m.textInput.Reset()
+				m.textInput.Blur()
+				m.modifying = false
+				return m, tea.Batch(tea.ClearScreen, modifyTask(id, newBody))
+			case "esc":
+				m.textInput.Reset()
+				m.textInput.Blur()
+				m.modifying = false
+				return m, nil
+
+			}
+			m.textInput, cmd = m.textInput.Update(msg)
+
+		} else if m.inserting {
 			switch msg.String() {
 			case "enter":
 				taskBody := TaskCreate{
@@ -328,19 +360,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 				}
-
 			case "n":
 				m.inserting = true
 				m.textInput.Focus()
 				m.focusedParentId = nil
 				return m, nil
-
 			case "D":
 				if len(rows) > 0 {
 					id := rows[m.cursor].task.Id
-					tea.ClearScreen()
 					return m, deleteTask(id)
 				}
+			case "C":
+				currTaskBody := rows[m.cursor].task.Body
+				m.modifying = true
+				m.textInput.Focus()
+				m.textInput.SetValue(currTaskBody)
+				return m, nil
+
 			}
 		}
 	}
@@ -353,21 +389,32 @@ func (m model) View() tea.View {
 	}
 
 	insertingIcon := ""
-	if m.inserting {
-		insertingIcon = "\033[91m*\033[0m"
+	if m.inserting || m.modifying {
+		insertingIcon = "\033[91m \033[0m"
 	}
 
 	s := fmt.Sprintf(nicePrint("Today's Tasks:", titleStyle)+"%s\n", insertingIcon)
 
-	if m.inserting == true && m.focusedParentId != nil {
-		s += m.childrenInsertView()
-		return tea.NewView(s)
+	if m.inserting {
+		if m.focusedParentId != nil {
+			s += m.childrenInsertView()
+		} else {
+			s += m.parentInsertView()
+		}
+	} else if m.modifying {
+		s += m.taskModifyView()
 	} else {
 		s += m.normalView()
-		v := tea.NewView(s)
-		v.AltScreen = true
-		return v
 	}
+	s += "\n"
+	if m.inserting || m.modifying {
+		s += nicePrint("I", insertModeStyle)
+	} else {
+		s += nicePrint("N", normalModeStyle)
+	}
+	v := tea.NewView(s)
+	v.AltScreen = true
+	return v
 
 }
 
@@ -384,4 +431,6 @@ func main() {
 // TODO: Add priority funcitionality
 // TODO: Add Extra details lookup.
 // TODO: Add due dates.
+// TODO: Show priority in the thing
 // TODO: Add multiple lists, need to fix the backend aswell to do this.
+// TODO: Add write error messages to the databse to handle the error gracefully. rightnow  i just return the error but dont rerender the good tasks.
