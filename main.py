@@ -56,7 +56,7 @@ class TaskUpdateCompleted(SQLModel):
 class TaskUpdate(SQLModel):
     body: str | None = None
     extra_details: str | None = None
-    priority: int | None = Field(ge=1, le=3)
+    priority: int | None = Field(default=3, ge=1, le=3)
 
 
 class TaskTreeNode(TaskBase):
