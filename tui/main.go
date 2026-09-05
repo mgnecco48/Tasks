@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	// "charm.land/lipgloss/v2"
 )
 
 const (
@@ -24,9 +26,11 @@ type model struct {
 	cursor          int
 	err             error
 	textInput       textinput.Model
+	viewport        viewport.Model
 	inserting       bool
 	modifying       bool
 	focusedParentId *int
+	showError       bool
 }
 
 type Task struct {
@@ -240,8 +244,9 @@ type taskModifiedMsg struct {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	var cmd tea.Cmd
-
+	var (
+		cmd tea.Cmd
+	)
 	switch msg := msg.(type) {
 
 	case taskMsg:
@@ -256,7 +261,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case errMsg:
-		m.err = msg
+		m.err = msg.err
+		m.showError = true
 		return m, nil
 
 	case taskCompletionUpdatedMsg:
@@ -326,6 +332,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			}
 			m.textInput, cmd = m.textInput.Update(msg)
+		} else if m.showError {
+			switch msg.String() {
+			case "esc", "enter":
+				m.showError = false
+				return m, nil
+			}
+
 		} else {
 			switch msg.String() {
 			case "ctrl+c", "q":
@@ -346,7 +359,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					task.IsCompleted = !task.IsCompleted
 					return m, updateTaskCompletion(task.Id, task.IsCompleted)
 				}
-			case "a":
+			case "A":
 				if len(rows) > 0 {
 					task := rows[m.cursor].task
 					if task.ParentId != nil {
@@ -360,7 +373,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 				}
-			case "n":
+			case "N":
 				m.inserting = true
 				m.textInput.Focus()
 				m.focusedParentId = nil
@@ -397,21 +410,26 @@ func (m model) View() tea.View {
 
 	if m.inserting {
 		if m.focusedParentId != nil {
-			s += m.childrenInsertView()
+			s += nicePrint(m.childrenInsertView(), todoBoxStyle)
 		} else {
-			s += m.parentInsertView()
+			s += nicePrint(m.parentInsertView(), todoBoxStyle)
 		}
 	} else if m.modifying {
-		s += m.taskModifyView()
+		s += nicePrint(m.taskModifyView(), todoBoxStyle)
 	} else {
-		s += m.normalView()
+		s += nicePrint(m.normalView(), todoBoxStyle)
 	}
+
 	s += "\n"
-	if m.inserting || m.modifying {
-		s += nicePrint("I", insertModeStyle)
-	} else {
-		s += nicePrint("N", normalModeStyle)
-	}
+	// if m.inserting || m.modifying {
+	// 	s += nicePrint("I", insertModeStyle)
+	// } else if m.err != nil {
+	// 	s += nicePrint("E", errorStatusStyle)
+	// } else {
+	// 	s += nicePrint("N", normalModeStyle)
+	// }
+	s += m.statusBar()
+
 	v := tea.NewView(s)
 	v.AltScreen = true
 	return v

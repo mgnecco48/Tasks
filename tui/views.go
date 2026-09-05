@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"charm.land/lipgloss/v2"
+)
 
 func (m model) normalView() string {
 	s := ""
@@ -59,4 +63,29 @@ func (m model) taskModifyView() string {
 		s += printNiceRow(m, i, row)
 	}
 	return s
+}
+
+type statusBar struct {
+	mode  string
+	space string
+	extra string
+}
+
+func (m model) statusBar() string {
+	var bar statusBar
+
+	if m.inserting || m.modifying {
+		bar.mode = nicePrint("INSERT", insertModeStyle)
+		bar.space = nicePrint("                              ", barSpaceStyle)
+		bar.extra = nicePrint("😁 : 👍🏻", insertModeStyle)
+	} else if m.err != nil {
+		bar.mode = nicePrint("ERROR", errorStatusStyle)
+		bar.space = m.err.Error()
+		bar.extra = nicePrint("😁 : 👍🏻", errorStatusStyle)
+	} else {
+		bar.mode = nicePrint("NORMAL", normalModeStyle)
+		bar.space = nicePrint("                              ", barSpaceStyle)
+		bar.extra = nicePrint("😁 : 👍🏻", normalModeStyle)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Bottom, bar.mode, bar.space, bar.extra)
 }
