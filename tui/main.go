@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	// "charm.land/lipgloss/v2"
 )
 
@@ -26,11 +26,12 @@ type model struct {
 	cursor          int
 	err             error
 	textInput       textinput.Model
-	viewport        viewport.Model
 	inserting       bool
 	modifying       bool
 	focusedParentId *int
 	showError       bool
+	width           int
+	height          int
 }
 
 type Task struct {
@@ -244,10 +245,14 @@ type taskModifiedMsg struct {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	var (
-		cmd tea.Cmd
-	)
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, getTasks
 
 	case taskMsg:
 		m.tasks = []Task(msg)
@@ -390,6 +395,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.SetValue(currTaskBody)
 				return m, nil
 
+			case "R":
+				return m, getTasks
+
 			}
 		}
 	}
@@ -397,6 +405,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
+
+	W, H := m.getDimensions()
+
 	if m.err != nil {
 		return tea.NewView(fmt.Sprintf("\nThere was an error: %v\n\n", m.err))
 	}
@@ -405,32 +416,24 @@ func (m model) View() tea.View {
 	if m.inserting || m.modifying {
 		insertingIcon = "\033[91m \033[0m"
 	}
+	tabText := fmt.Sprintf("TASKS %s", insertingIcon)
+	titleTab := nicePrint(tabText, titleStyle)
 
-	s := fmt.Sprintf(nicePrint("Today's Tasks:", titleStyle)+"%s\n", insertingIcon)
-
+	taskBox := ""
 	if m.inserting {
 		if m.focusedParentId != nil {
-			s += nicePrint(m.childrenInsertView(), todoBoxStyle)
+			taskBox += nicePrint(m.childrenInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
 		} else {
-			s += nicePrint(m.parentInsertView(), todoBoxStyle)
+			taskBox += nicePrint(m.parentInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
 		}
 	} else if m.modifying {
-		s += nicePrint(m.taskModifyView(), todoBoxStyle)
+		taskBox += nicePrint(m.taskModifyView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
 	} else {
-		s += nicePrint(m.normalView(), todoBoxStyle)
+		taskBox += nicePrint(m.normalView(), todoBoxStyle.Width(W))
 	}
 
-	s += "\n"
-	// if m.inserting || m.modifying {
-	// 	s += nicePrint("I", insertModeStyle)
-	// } else if m.err != nil {
-	// 	s += nicePrint("E", errorStatusStyle)
-	// } else {
-	// 	s += nicePrint("N", normalModeStyle)
-	// }
-	s += m.statusBar()
-
-	v := tea.NewView(s)
+	screen := lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox)
+	v := tea.NewView(screen)
 	v.AltScreen = true
 	return v
 
@@ -444,11 +447,11 @@ func main() {
 	}
 }
 
-// TODO: make it look nice with lipgloss, check other methods i could add (modify task?)
-// TODO: add edit functionality
+// TODO: Apply my new line logic. Fix scrolling
 // TODO: Add priority funcitionality
 // TODO: Add Extra details lookup.
 // TODO: Add due dates.
 // TODO: Show priority in the thing
 // TODO: Add multiple lists, need to fix the backend aswell to do this.
 // TODO: Add write error messages to the databse to handle the error gracefully. rightnow  i just return the error but dont rerender the good tasks.
+// TODO: Add Undo option for whoopsies
