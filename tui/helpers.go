@@ -30,6 +30,22 @@ func (m model) getDimensions() (int, int) {
 	return m.width, m.height
 }
 
+func renderPriority(priority int) string {
+	symbol := "󱥸"
+	style := lipgloss.NewStyle().Width(5)
+
+	switch priority {
+	case 1:
+		style = style.Foreground(lipgloss.Red)
+	case 2:
+		style = style.Foreground(lipgloss.Yellow)
+	case 3:
+		style = style.Foreground(lipgloss.Green)
+	}
+
+	return nicePrint(symbol, style)
+}
+
 // Helper to control row rendering in a single place
 func printNiceRow(m model, i int, row taskRow) string {
 
@@ -44,23 +60,27 @@ func printNiceRow(m model, i int, row taskRow) string {
 	if row.task.IsCompleted {
 		completed = nicePrint("", iconsStyle)
 	}
+
 	parentPrefix := nicePrint(fmt.Sprintf("%s %s ", cursor, completed), prefixStyle)
 	childPrefix := nicePrint(fmt.Sprintf("%s    󱞩 %s ", cursor, completed), prefixStyle)
 
 	pPrefixW := lipgloss.Width(parentPrefix)
 	cPrefixW := lipgloss.Width(childPrefix)
 
+	prioritySymbol := renderPriority(row.task.Priority)
+	pSymbolW := lipgloss.Width(prioritySymbol)
+
 	if row.indent == 0 {
 		if row.task.IsCompleted {
-			s += lipgloss.JoinHorizontal(lipgloss.Top, parentPrefix, nicePrint(row.task.Body, completedStyle.Width(W-pPrefixW)))
+			s += lipgloss.JoinHorizontal(lipgloss.Top, parentPrefix, nicePrint(row.task.Body, completedStyle.Width(W-pPrefixW-pSymbolW)), prioritySymbol)
 		} else {
-			s += lipgloss.JoinHorizontal(lipgloss.Top, parentPrefix, nicePrint(row.task.Body, uncompletedStyle.Width(W-pPrefixW)))
+			s += lipgloss.JoinHorizontal(lipgloss.Top, parentPrefix, nicePrint(row.task.Body, uncompletedStyle.Width(W-pPrefixW-pSymbolW)), prioritySymbol)
 		}
 	} else {
 		if row.task.IsCompleted {
-			s += lipgloss.JoinHorizontal(lipgloss.Top, childPrefix, nicePrint(row.task.Body, completedStyle.Width(W-cPrefixW)))
+			s += lipgloss.JoinHorizontal(lipgloss.Top, childPrefix, nicePrint(row.task.Body, completedStyle.Width(W-cPrefixW-pSymbolW)), prioritySymbol)
 		} else {
-			s += lipgloss.JoinHorizontal(lipgloss.Top, childPrefix, nicePrint(row.task.Body, uncompletedStyle.Width(W-cPrefixW)))
+			s += lipgloss.JoinHorizontal(lipgloss.Top, childPrefix, nicePrint(row.task.Body, uncompletedStyle.Width(W-cPrefixW-pSymbolW)), prioritySymbol)
 		}
 	}
 	return s
