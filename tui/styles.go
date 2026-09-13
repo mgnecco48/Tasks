@@ -5,7 +5,7 @@ import (
 )
 
 func nicePrint(text string, style lipgloss.Style) string {
-	return lipgloss.Sprint(style.Render(text))
+	return style.Render(text)
 }
 
 func tabBorder(left, middle, right string) lipgloss.Border {
@@ -29,7 +29,7 @@ var iconsStyle = lipgloss.NewStyle().
 
 var prefixStyle = lipgloss.NewStyle()
 var uncompletedStyle = lipgloss.NewStyle()
-var completedStyle = lipgloss.NewStyle().Strikethrough(true)
+var completedStyle = lipgloss.NewStyle().Strikethrough(true).Faint(true)
 
 var todoBoxStyle = lipgloss.NewStyle().
 	PaddingRight(1).
