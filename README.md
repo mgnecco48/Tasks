@@ -10,14 +10,11 @@ Even though there are more tools that i could just use straight away, I find thi
 
 # How does it work?
 
-- Basically, the notes are written in a `markdown` file with Neovim.
-
-> [!NOTE]
-> Right now, this idea adds a lot of complexity, as i will also have to manage the state of the local file and write a Neovim plugin. I decided to create a TUI that can act as a client to the backend instead to start testing and iterating
-
-- On a write event, I will trigger an action to parse the markdown, and identify the individual tasks. That will then check the database to add new tasks, update existing ones or delete the ones that have been removed from the file. The completion status can also be updated by ticking the boxes.
-- On the other side, by visiting the corresponding URL, i could see the same list of tasks in my phone or any other device via a web interphase. I can toggle the task's completion status, add new ones or modify existing ones. This should in turn also update the same database to maintain consistency.
-- Last, i should also be able to somehow refresh my local file when I am working in my main machine, and the markdown should get generated from the database, using it as the only source of truth.
+- The source of truth for the tasks is an SQLite database. I have written a fastAPI backend to handle all interactions with the database, and that takes care of most of the functionality such as sorting, cascading effects for completion and deletion and so on. After that is in place i will host that somewhere and there would be two "dumb" clients that will send requests to it.
+- Initially the idea was to base everything from Neovim, but i have moved on into building a TUI client written in Go, using the [Bubbletea](https://github.com/charmbracelet/bubbletea) framework. That takes care of the terminal side of things and eventually I will look into serving that frontend through ssh, so that i can actually use this everywhere. For now the go code or binary needs to live in my machine.
+- Then, there will be a web frontend that emulates the same functionality as the TUI, so that this becomes available from my phone, or any other device with a browser and internet access.
+- The last part would be to self host both the backend and database, as well as the frontend, so it becomes available anywhere, but its also free. Tailscale and an old linux laptop at home will probably be the way to do this.
+- Ideally, the end product will consist of providing a way to clone this repo, run a few commands (something like a Makefile in combination with Docker), and the whole network is ready for anyone to use themselves. That will take some time though.
 
 ---
 
