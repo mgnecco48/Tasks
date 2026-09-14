@@ -28,8 +28,11 @@ var iconsStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.BrightCyan)
 
 var prefixStyle = lipgloss.NewStyle()
-var uncompletedStyle = lipgloss.NewStyle()
-var completedStyle = lipgloss.NewStyle().Strikethrough(true).Faint(true)
+var uncompletedStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.BrightWhite)
+var completedStyle = uncompletedStyle.
+	Strikethrough(true).
+	Faint(true)
 
 var todoBoxStyle = lipgloss.NewStyle().
 	PaddingRight(1).
@@ -37,5 +40,10 @@ var todoBoxStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("#00e5ee"))
 
 var helpStyle = lipgloss.NewStyle().
-	Width(60).
-	Foreground(lipgloss.Color("#525252"))
+	Foreground(lipgloss.White)
+
+var helpBoxStyle = helpStyle.
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("#00e5ee")).
+	Padding(1, 1, 0, 1).
+	Align(lipgloss.Left)

@@ -25,6 +25,7 @@ type model struct {
 	modifying       bool
 	focusedParentId *int
 	showError       bool
+	showHelp        bool
 	width           int
 	height          int
 }
@@ -96,6 +97,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(tea.ClearScreen, getTasks)
 
 	case tea.KeyPressMsg:
+
 		rows := taskRows(m.tasks, 0)
 
 		if m.modifying {
@@ -144,6 +146,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+		} else if m.showHelp {
+			switch msg.String() {
+			case "?", "esc":
+				m.showHelp = !m.showHelp
+				return m, nil
+			}
+
 		} else {
 			switch msg.String() {
 			case "ctrl+c", "q":
@@ -188,7 +197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					id := rows[m.cursor].task.Id
 					return m, deleteTask(id)
 				}
-			case "C":
+			case "M":
 				currTaskBody := rows[m.cursor].task.Body
 				m.modifying = true
 				m.textInput.Focus()
@@ -198,6 +207,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "R":
 				return m, getTasks
 
+			case "?":
+				m.showHelp = !m.showHelp
+				return m, nil
 			}
 		}
 	}
@@ -216,23 +228,42 @@ func (m model) View() tea.View {
 	if m.inserting || m.modifying {
 		insertingIcon = "\033[91m \033[0m"
 	}
+
 	tabText := fmt.Sprintf("TASKS %s", insertingIcon)
 	titleTab := nicePrint(tabText, titleStyle)
+	helpView := lipgloss.PlaceHorizontal(W, lipgloss.Center, m.helpMenu())
 
 	taskBox := ""
 	if m.inserting {
 		if m.focusedParentId != nil {
-			taskBox += nicePrint(m.childrenInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
+			taskBox += nicePrint(m.childrenInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-lipgloss.Height(helpView)))
 		} else {
-			taskBox += nicePrint(m.parentInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
+			taskBox += nicePrint(m.parentInsertView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-lipgloss.Height(helpView)))
 		}
 	} else if m.modifying {
-		taskBox += nicePrint(m.taskModifyView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)))
+		taskBox += nicePrint(m.taskModifyView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-lipgloss.Height(helpView)))
+	} else if m.showHelp {
+
+		taskBox += nicePrint(m.normalView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-1).Faint(true))
+		helpBox := nicePrint(m.helpMenu(), helpBoxStyle)
+
+		boxWidth, boxHeight := lipgloss.Size(helpBox)
+		Xpos := (W / 2) - (boxWidth / 2)
+		Ypos := (H / 2) - (boxHeight / 2)
+
+		background := lipgloss.NewLayer(lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox))
+		popUp := lipgloss.NewLayer(helpBox).X(Xpos).Y(Ypos).Z(1)
+		comp := lipgloss.NewCompositor(background, popUp)
+		screen := comp.Render()
+		v := tea.NewView(screen)
+		v.AltScreen = true
+		return v
+
 	} else {
-		taskBox += nicePrint(m.normalView(), todoBoxStyle.Width(W))
+		taskBox += nicePrint(m.normalView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-lipgloss.Height(helpView)))
 	}
 
-	screen := lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox)
+	screen := lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox, helpView)
 	v := tea.NewView(screen)
 	v.AltScreen = true
 	return v
@@ -247,11 +278,10 @@ func main() {
 	}
 }
 
-// TODO: Apply my new line logic. Fix scrolling
+// TODO: Limit Height and add Scrolling.
 // TODO: Add priority funcitionality
 // TODO: Add Extra details lookup.
 // TODO: Add due dates.
-// TODO: Show priority in the thing
 // TODO: Add multiple lists, need to fix the backend aswell to do this.
 // TODO: Add write error messages to the databse to handle the error gracefully. rightnow  i just return the error but dont rerender the good tasks.
 // TODO: Add Undo option for whoopsies

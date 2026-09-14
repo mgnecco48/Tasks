@@ -4,21 +4,6 @@ import (
 	"fmt"
 )
 
-type keyMap struct {
-	Up          string
-	Down        string
-	Quit        string
-	Help        string
-	Reload      string
-	NewMainTask string
-	NewSubTask  string
-	DeleteTask  string
-	ModifyTask  string
-}
-
-var keys = struct {
-}
-
 func (m model) normalView() string {
 	s := ""
 	rows := taskRows(m.tasks, 0)

@@ -51,10 +51,12 @@ func printNiceRow(m model, i int, row taskRow) string {
 
 	W, _ := m.getDimensions()
 
+	style := lipgloss.NewStyle()
 	s := ""
 	cursor := " "
 	if m.cursor == i {
 		cursor = "\033[91m>\033[0m"
+		style = style.Background(lipgloss.Color("#3c3836"))
 	}
 	completed := nicePrint("", iconsStyle)
 	if row.task.IsCompleted {

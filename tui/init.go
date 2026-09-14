@@ -8,7 +8,6 @@ import (
 func initialModel() model {
 	ti := textinput.New()
 	ti.Placeholder = "New Task"
-	ti.SetWidth(50)
 
 	return model{
 		tasks:     []Task{},
