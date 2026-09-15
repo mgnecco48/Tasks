@@ -22,6 +22,7 @@ var (
 	Esc           = key{"Esc", "cancel"}
 	NormalEnter   = key{"Enter", "toggle completion"}
 	InsertEnter   = key{"Enter", "save"}
+	HelpExit      = key{"Esc/?/q", "toggle help"}
 )
 
 func (m model) ShortHelp() []key {
@@ -41,6 +42,7 @@ func (m model) LongHelp() []key {
 		ModifyTask,
 		NewParentTask, NewChildTask,
 		NormalEnter,
+		HelpExit,
 	}
 }
 
@@ -53,7 +55,7 @@ func (m model) helpMenu() string {
 	}
 	view := ""
 	keyStyle := helpStyle.AlignHorizontal(lipgloss.Right).Bold(true).Padding(0, 1, 0, 1)
-	descStyle := helpStyle.AlignHorizontal(lipgloss.Left)
+	descStyle := helpStyle.AlignHorizontal(lipgloss.Left).Italic(true)
 	for _, key := range keys {
 		if m.showHelp == true {
 			view += fmt.Sprintln(lipgloss.JoinHorizontal(lipgloss.Bottom, nicePrint(key.key, keyStyle), nicePrint(key.description, descStyle)))

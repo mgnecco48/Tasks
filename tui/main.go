@@ -148,7 +148,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		} else if m.showHelp {
 			switch msg.String() {
-			case "?", "esc":
+			case "?", "esc", "q":
 				m.showHelp = !m.showHelp
 				return m, nil
 			}
@@ -282,6 +282,7 @@ func main() {
 // TODO: Add priority funcitionality
 // TODO: Add Extra details lookup.
 // TODO: Add due dates.
+// TODO: Show priority in the thing
 // TODO: Add multiple lists, need to fix the backend aswell to do this.
 // TODO: Add write error messages to the databse to handle the error gracefully. rightnow  i just return the error but dont rerender the good tasks.
 // TODO: Add Undo option for whoopsies

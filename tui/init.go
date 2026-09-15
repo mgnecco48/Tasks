@@ -12,8 +12,6 @@ func initialModel() model {
 	return model{
 		tasks:     []Task{},
 		textInput: ti,
-		inserting: false,
-		modifying: false,
 	}
 }
 

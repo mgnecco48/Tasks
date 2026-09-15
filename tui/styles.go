@@ -8,17 +8,21 @@ func nicePrint(text string, style lipgloss.Style) string {
 	return style.Render(text)
 }
 
-func tabBorder(left, middle, right string) lipgloss.Border {
-	border := lipgloss.RoundedBorder()
-	border.BottomLeft = left
-	border.BottomRight = right
-	border.Bottom = middle
-
-	return border
+var firstTabBorder = lipgloss.Border{
+	Top:         "─",
+	Bottom:      "",
+	Left:        "│",
+	Right:       "│",
+	TopLeft:     "╭",
+	TopRight:    "╮",
+	BottomLeft:  "",
+	BottomRight: "",
 }
 
 var titleStyle = lipgloss.NewStyle().
 	Bold(true).
+	Border(firstTabBorder).BorderBottom(false).
+	BorderForeground(lipgloss.Color("#00e5ee")).
 	Foreground(lipgloss.Black).
 	Background(lipgloss.Color("#00e5ee")).
 	AlignHorizontal(lipgloss.Center).
@@ -36,7 +40,7 @@ var completedStyle = uncompletedStyle.
 
 var todoBoxStyle = lipgloss.NewStyle().
 	PaddingRight(1).
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.RoundedBorder()).BorderTop(false).
 	BorderForeground(lipgloss.Color("#00e5ee"))
 
 var helpStyle = lipgloss.NewStyle().
