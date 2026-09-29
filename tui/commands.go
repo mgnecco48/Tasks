@@ -21,7 +21,7 @@ type taskMsg []Task
 
 // Command
 func getTasks() tea.Msg {
-
+	tree_url := Url_base + "tree/"
 	c := &http.Client{Timeout: 10 * time.Second}
 	resp, err := c.Get(tree_url)
 	if err != nil {
@@ -65,7 +65,7 @@ func updateTaskCompletion(id int, completed bool) tea.Cmd {
 
 		req, err := http.NewRequest(
 			http.MethodPatch,
-			fmt.Sprintf("http://127.0.0.1:8000/tasks/%d/completion", id),
+			fmt.Sprintf("%s%d/completion", Url_base, id),
 			bytes.NewReader(body),
 		)
 		if err != nil {
@@ -108,7 +108,7 @@ func createTask(task TaskCreate) tea.Cmd {
 
 		c := &http.Client{Timeout: 10 * time.Second}
 		resp, err := c.Post(
-			create_url,
+			Url_base,
 			"application/json",
 			bytes.NewReader(body),
 		)
@@ -136,7 +136,7 @@ func deleteTask(taskId int) tea.Cmd {
 
 		req, err := http.NewRequest(
 			http.MethodDelete,
-			fmt.Sprintf("%s%d/", delete_url, taskId),
+			fmt.Sprintf("%s%d/", Url_base, taskId),
 			nil,
 		)
 		if err != nil {
@@ -176,7 +176,7 @@ func modifyTask(id int, newBody string) tea.Cmd {
 
 		req, err := http.NewRequest(
 			http.MethodPatch,
-			fmt.Sprintf("http://127.0.0.1:8000/tasks/%d/", id),
+			fmt.Sprintf("%s%d/", Url_base, id),
 			bytes.NewReader(body),
 		)
 		if err != nil {

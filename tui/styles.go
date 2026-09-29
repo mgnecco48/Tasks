@@ -23,8 +23,7 @@ var titleStyle = lipgloss.NewStyle().
 	Bold(true).
 	Border(firstTabBorder).BorderBottom(false).
 	BorderForeground(lipgloss.Color("#00e5ee")).
-	Foreground(lipgloss.Black).
-	Background(lipgloss.Color("#00e5ee")).
+	Foreground(lipgloss.Color("#00e5ee")).
 	AlignHorizontal(lipgloss.Center).
 	Padding(0, 1)
 
@@ -39,8 +38,8 @@ var completedStyle = uncompletedStyle.
 	Faint(true)
 
 var todoBoxStyle = lipgloss.NewStyle().
-	PaddingRight(1).
-	Border(lipgloss.RoundedBorder()).BorderTop(false).
+	Padding(1, 1, 0, 0).
+	Border(lipgloss.RoundedBorder()).
 	BorderForeground(lipgloss.Color("#00e5ee"))
 
 var helpStyle = lipgloss.NewStyle().

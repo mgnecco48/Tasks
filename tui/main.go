@@ -10,10 +10,7 @@ import (
 )
 
 const (
-	tree_url   string = "http://127.0.0.1:8000/tasks/tree"
-	create_url string = "http://127.0.0.1:8000/tasks/"
-	delete_url string = "http://127.0.0.1:8000/tasks/"
-	modify_url string = "http://127.0.0.1:8000/tasks/"
+	Url_base string = "http://100.99.22.62:8000/tasks/"
 )
 
 type model struct {

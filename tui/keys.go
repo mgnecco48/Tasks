@@ -23,6 +23,7 @@ var (
 	NormalEnter   = key{"Enter", "toggle completion"}
 	InsertEnter   = key{"Enter", "save"}
 	HelpExit      = key{"Esc/?/q", "toggle help"}
+	Refresh       = key{"R", "refresh database"}
 )
 
 func (m model) ShortHelp() []key {
@@ -41,6 +42,7 @@ func (m model) LongHelp() []key {
 		DeleteTask,
 		ModifyTask,
 		NewParentTask, NewChildTask,
+		Refresh,
 		NormalEnter,
 		HelpExit,
 	}

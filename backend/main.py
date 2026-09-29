@@ -4,6 +4,7 @@ from datetime import datetime, UTC
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import event
+from pathlib import Path
 
 
 # {{{ Models
@@ -74,8 +75,9 @@ class TaskTreeNode(TaskBase):
 # }}}
 
 # {{{ SQLite setup # TODO: Need to create the databases with something like Alembic, so that when i add a column to the model it automatically updates the databse.
-sqlite_filename = "tasks.db"
-sqlite_url = f"sqlite:///{sqlite_filename}"
+project_root = Path(__file__).resolve().parent.parent
+sqlite_path = project_root / "data" / "tasks.db"
+sqlite_url = f"sqlite:///{sqlite_path}"
 engine = create_engine(sqlite_url, echo=True)
 
 
