@@ -21,9 +21,8 @@ var firstTabBorder = lipgloss.Border{
 
 var titleStyle = lipgloss.NewStyle().
 	Bold(true).
-	Border(firstTabBorder).BorderBottom(false).
-	BorderForeground(lipgloss.Color("#00e5ee")).
-	Foreground(lipgloss.Color("#00e5ee")).
+	Background(lipgloss.Color("#00e5ee")).
+	Foreground(lipgloss.Color("#111111")).
 	AlignHorizontal(lipgloss.Center).
 	Padding(0, 1)
 

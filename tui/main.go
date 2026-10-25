@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Url_base string = "http://100.99.22.62:8000/tasks/"
+	Url_base string = "http://179.198.222.169:8123/tasks/"
 )
 
 type model struct {
@@ -34,11 +34,13 @@ type Task struct {
 	IsCompleted bool   `json:"is_completed"`
 	ParentId    *int   `json:"parent_id"`
 	Children    []Task `json:"children"`
+	List        string `json:"list"`
 }
 
 type TaskCreate struct {
 	Body     string `json:"body"`
 	ParentId *int   `json:"parent_id"`
+	List     string `json:"list"`
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

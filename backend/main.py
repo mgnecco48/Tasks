@@ -5,74 +5,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import event
 from pathlib import Path
+from models import *
 
-
-# {{{ Models
-def utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
-class TaskBase(SQLModel):
-    body: str
-    extra_details: str | None = None
-    priority: int = Field(default=3, ge=1, le=3)
-
-
-class Task(TaskBase, table=True):
-    __tablename__ = "tasks"  # type: ignore
-
-    id: int | None = Field(default=None, primary_key=True)
-    is_completed: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
-    parent_id: int | None = Field(
-        default=None, foreign_key="tasks.id", ondelete="CASCADE"
-    )
-
-    parent: Optional["Task"] = Relationship(
-        back_populates="children", sa_relationship_kwargs={"remote_side": "Task.id"}
-    )
-    children: list["Task"] = Relationship(back_populates="parent", cascade_delete=True)
-
-
-class TaskPublic(TaskBase):
-    id: int
-    is_completed: bool
-    created_at: datetime
-    updated_at: datetime
-    completed_at: datetime | None
-
-    parent_id: int | None
-
-
-class TaskInsert(TaskBase):
-    parent_id: int | None = None
-
-
-class TaskUpdateCompleted(SQLModel):
-    is_completed: bool
-
-
-class TaskUpdate(SQLModel):
-    body: str | None = None
-    extra_details: str | None = None
-    priority: int | None = Field(default=3, ge=1, le=3)
-
-
-class TaskTreeNode(TaskBase):
-    id: int
-    is_completed: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
-    priority: int = Field(default=3, ge=1, le=3)
-    parent_id: int | None = None
-
-    children: list["TaskTreeNode"] = Field(default_factory=list)
-
-
-# }}}
 
 # {{{ SQLite setup # TODO: Need to create the databases with something like Alembic, so that when i add a column to the model it automatically updates the databse.
 project_root = Path(__file__).resolve().parent.parent
@@ -91,56 +25,41 @@ def set_sqlite_pragma(dbapi_connection, _connection_record):
 
 def create_everything():
     SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        data = session.exec(select(Task)).all()
+        if not data:
+            init_database()
 
 
-def add_tasks():
-    task1 = Task(  # {{{
-        body="Comprar Cosas",
-        extra_details="Ir al Kiwi mejor",
-        created_at=datetime.now(UTC),
+def init_database():
+    list1 = List(name="Main")
+
+    task1 = Task(
+        body="task1",
+        extra_details="Some extra details",
     )
     task2 = Task(
-        body="Hacer Cena",
-        extra_details="Arroz con Pollo",
-        created_at=datetime.now(UTC),
+        body="task2",
+        extra_details="Some extra details",
     )
-    child1 = Task(
-        body="Leche",
-        extra_details="Tine, entera",
-        created_at=datetime.now(UTC),
-        parent_id=1,
+    task3 = Task(
+        body="task3",
+        extra_details="Some extra details",
     )
-    child2 = Task(
-        body="Huevos",
-        extra_details="18 pieces, large",
-        created_at=datetime.now(UTC),
-        parent_id=1,
-    )
-    child3 = Task(
-        body="cocinar arroz",
-        extra_details="solo dos tazas",
-        created_at=datetime.now(UTC),
-        parent_id=2,
-    )
-    child4 = Task(
-        body="cocinar pollo",
-        extra_details="dos pechugas",
-        created_at=datetime.now(UTC),
-        parent_id=2,
-    )
-    tasks = [task1, task2, child1, child2, child3, child4]
+
+    data = [list1, task1, task2, task3]
 
     with Session(engine) as session:
-        for task in tasks:
-            session.add(task)
+        for record in data:
+            session.add(record)
 
         session.commit()
 
-        for task in tasks:
-            session.refresh(task)
+        for record in data:
+            session.refresh(record)
 
-        for task in tasks:
-            print(task)  # }}}
+        for record in data:
+            print(record)
 
 
 def get_session():
@@ -149,7 +68,6 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
-# }}}
 
 # {{{ FastAPI part
 app = FastAPI()
@@ -171,6 +89,12 @@ def on_startup():
 @app.get("/")
 def get_root():
     return {"Hello": "This is My app"}
+
+
+@app.get("/lists/")
+async def get_all_lists(session: SessionDep):
+    query = session.exec(select(List)).all()
+    return query
 
 
 @app.get("/tasks/", response_model=list[TaskPublic])
