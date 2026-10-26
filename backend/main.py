@@ -1,80 +1,13 @@
-from typing import Annotated, Optional
-from sqlmodel import SQLModel, create_engine, Session, select, Field, Relationship
-from datetime import datetime, UTC
+from typing import Annotated
+from sqlmodel import SQLModel, create_engine, Session, select
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import event
 from pathlib import Path
+from . import models
+from .models import utc_now
 
-
-# {{{ Models
-def utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
-class TaskBase(SQLModel):
-    body: str
-    extra_details: str | None = None
-    priority: int = Field(default=3, ge=1, le=3)
-
-
-class Task(TaskBase, table=True):
-    __tablename__ = "tasks"  # type: ignore
-
-    id: int | None = Field(default=None, primary_key=True)
-    is_completed: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
-    parent_id: int | None = Field(
-        default=None, foreign_key="tasks.id", ondelete="CASCADE"
-    )
-
-    parent: Optional["Task"] = Relationship(
-        back_populates="children", sa_relationship_kwargs={"remote_side": "Task.id"}
-    )
-    children: list["Task"] = Relationship(back_populates="parent", cascade_delete=True)
-
-
-class TaskPublic(TaskBase):
-    id: int
-    is_completed: bool
-    created_at: datetime
-    updated_at: datetime
-    completed_at: datetime | None
-
-    parent_id: int | None
-
-
-class TaskInsert(TaskBase):
-    parent_id: int | None = None
-
-
-class TaskUpdateCompleted(SQLModel):
-    is_completed: bool
-
-
-class TaskUpdate(SQLModel):
-    body: str | None = None
-    extra_details: str | None = None
-    priority: int | None = Field(default=3, ge=1, le=3)
-
-
-class TaskTreeNode(TaskBase):
-    id: int
-    is_completed: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
-    priority: int = Field(default=3, ge=1, le=3)
-    parent_id: int | None = None
-
-    children: list["TaskTreeNode"] = Field(default_factory=list)
-
-
-# }}}
-
-# {{{ SQLite setup # TODO: Need to create the databases with something like Alembic, so that when i add a column to the model it automatically updates the databse.
+# {{{ SQLite setup
 project_root = Path(__file__).resolve().parent.parent
 sqlite_path = project_root / "data" / "tasks.db"
 sqlite_url = f"sqlite:///{sqlite_path}"
@@ -93,54 +26,35 @@ def create_everything():
     SQLModel.metadata.create_all(engine)
 
 
-def add_tasks():
-    task1 = Task(  # {{{
-        body="Comprar Cosas",
-        extra_details="Ir al Kiwi mejor",
-        created_at=datetime.now(UTC),
+def init_database():
+    list1 = models.List(name="Main", description="test list")
+
+    task1 = models.Task(
+        body="task1",
+        extra_details="Some extra details",
     )
-    task2 = Task(
-        body="Hacer Cena",
-        extra_details="Arroz con Pollo",
-        created_at=datetime.now(UTC),
+    task2 = models.Task(
+        body="task2",
+        extra_details="Some extra details",
     )
-    child1 = Task(
-        body="Leche",
-        extra_details="Tine, entera",
-        created_at=datetime.now(UTC),
-        parent_id=1,
+    task3 = models.Task(
+        body="task3",
+        extra_details="Some extra details",
     )
-    child2 = Task(
-        body="Huevos",
-        extra_details="18 pieces, large",
-        created_at=datetime.now(UTC),
-        parent_id=1,
-    )
-    child3 = Task(
-        body="cocinar arroz",
-        extra_details="solo dos tazas",
-        created_at=datetime.now(UTC),
-        parent_id=2,
-    )
-    child4 = Task(
-        body="cocinar pollo",
-        extra_details="dos pechugas",
-        created_at=datetime.now(UTC),
-        parent_id=2,
-    )
-    tasks = [task1, task2, child1, child2, child3, child4]
+
+    data = [list1, task1, task2, task3]
 
     with Session(engine) as session:
-        for task in tasks:
-            session.add(task)
+        for record in data:
+            session.add(record)
 
         session.commit()
 
-        for task in tasks:
-            session.refresh(task)
+        for record in data:
+            session.refresh(record)
 
-        for task in tasks:
-            print(task)  # }}}
+        for record in data:
+            print(record)
 
 
 def get_session():
@@ -148,8 +62,14 @@ def get_session():
         yield session
 
 
+def add_data():
+    with Session(engine) as session:
+        data = session.exec(select(models.Task)).all()
+        if not data:
+            init_database()
+
+
 SessionDep = Annotated[Session, Depends(get_session)]
-# }}}
 
 # {{{ FastAPI part
 app = FastAPI()
@@ -163,9 +83,11 @@ app.add_middleware(
 )
 
 
+# Makes it so that the database functions run when the servers is started
 @app.on_event("startup")
 def on_startup():
     create_everything()
+    add_data()
 
 
 @app.get("/")
@@ -173,18 +95,105 @@ def get_root():
     return {"Hello": "This is My app"}
 
 
-@app.get("/tasks/", response_model=list[TaskPublic])
-async def get_all_tasks(session: SessionDep):
-    query = session.exec(select(Task)).all()
+# Get the tasks from a specific list
+@app.get("/{list_id}/tasks/")
+async def get_list_tasks(session: SessionDep, list_id: int):
+    list = session.get(models.List, list_id)
+    if not list:
+        raise HTTPException(
+            status_code=404, detail=f"List with id {list_id} does not exist"
+        )
+    query = session.exec(
+        select(models.Task).where(models.Task.list_id == list_id)
+    ).all()
+    if not query:
+        return {"Uh oh": "There are not tasks in this list"}
     return query
 
 
-@app.get("/tasks/tree/", response_model=list[TaskTreeNode])
+# Get all the available lists
+@app.get("/lists/")
+async def get_all_lists(session: SessionDep):
+    query = session.exec(select(models.List)).all()
+    return query
+
+
+# Create a new list
+@app.post("/lists/", response_model=models.List)
+async def create_list(session: SessionDep, list: models.ListCreate):
+    new_list = models.List.model_validate(list)
+    session.add(new_list)
+    session.commit()
+    session.refresh(new_list)
+    return list
+
+
+# Update the name of an existing list
+@app.patch("/lists/{list_id}/", response_model=models.List)
+async def update_list(session: SessionDep, list_id: int, list: models.ListModify):
+    list_to_update = session.get(models.List, list_id)
+    if not list_to_update:
+        raise HTTPException(status_code=404, detail="List does not exist")
+
+    new_data = list.model_dump(exclude_unset=True)
+    list_to_update.sqlmodel_update(new_data)
+    list_to_update.updated_at = utc_now()
+
+    session.add(list_to_update)
+    session.commit()
+    session.refresh(list_to_update)
+    return list_to_update
+
+
+# Delete an existing list
+# TODO: See what happens when a list is deleted with active tasks
+@app.delete("/list/{list_id}/")
+async def delete_list(session: SessionDep, list_id: int):
+    list_to_delete = session.get(models.List, list_id)
+    if not list_to_delete:
+        raise HTTPException(
+            status_code=404, detail=f"List with id {list_id} does not exist."
+        )
+    list_name = list_to_delete.name
+    session.delete(list_to_delete)
+    session.commit
+    return {"deleted": f"ID: {list_id}, Name: {list_name}"}
+
+
+# Get all the existing tasks
+@app.get("/tasks/", response_model=list[models.TaskPublic])
+async def get_all_tasks(session: SessionDep):
+    query = session.exec(select(models.Task)).all()
+    return query
+
+
+# Cerate a new task
+@app.post("/tasks/", response_model=models.TaskPublic)
+async def create_task(session: SessionDep, task: models.TaskCreate):
+    # Checking if a parent id was passed, and if that parent actually exists
+    if task.parent_id is not None:
+        parent = session.get(models.Task, task.parent_id)
+        if parent is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Parent task with id {task.parent_id} is not stored in the database",
+            )
+
+    new_task = models.Task.model_validate(task)
+
+    session.add(new_task)
+    session.commit()
+    session.refresh(new_task)
+    return new_task
+
+
+# Handle the rendering by grouping the children and parent tasks. It also takes care of the sorting, by created time, etc
+@app.get("/tasks/tree/", response_model=list[models.TaskTreeNode])
 async def get_task_tree(session: SessionDep):
-    flat_tasks = session.exec(select(Task)).all()
+    flat_tasks = session.exec(select(models.Task)).all()
 
     nodes = {
-        task.id: TaskTreeNode(
+        task.id: models.TaskTreeNode(
             id=task.id,
             body=task.body,
             extra_details=task.extra_details,
@@ -213,7 +222,7 @@ async def get_task_tree(session: SessionDep):
         else:
             roots.append(node)
 
-    def recursive_sort(tasks: list["TaskTreeNode"]):
+    def recursive_sort(tasks: list["models.TaskTreeNode"]):
         tasks.sort(
             key=lambda task: (
                 task.is_completed,
@@ -230,41 +239,27 @@ async def get_task_tree(session: SessionDep):
     return roots
 
 
-@app.post("/tasks/", response_model=TaskPublic)
-async def add_task(session: SessionDep, task: TaskInsert):
-    if task.parent_id is not None:
-        parent = session.get(Task, task.parent_id)
-        if parent is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Parent task with id {task.parent_id} is not stored in the database",
-            )
-
-    new_task = Task.model_validate(task)
-
-    session.add(new_task)
-    session.commit()
-    session.refresh(new_task)
-    return new_task
-
-
+# Delete an existing task
 @app.delete("/tasks/{task_id}/")
 async def delete_task(session: SessionDep, task_id: int):
-    task_to_delete = session.get(Task, task_id)
+    task_to_delete = session.get(models.Task, task_id)
     if not task_to_delete:
         raise HTTPException(
             status_code=404, detail=f"Task with id {task_id} does not exist"
         )
+    task_body = task_to_delete.body
     session.delete(task_to_delete)
     session.commit()
-    return {"deleted": True}
+    return {"deleted": f"Id: {task_id}, Body: {task_body}"}
 
 
-@app.patch("/tasks/{task_id}/completion", response_model=TaskPublic)
+# Toggle completion status of a task. Handle completion for parent tasks when all
+# children tasks are completed.
+@app.patch("/tasks/{task_id}/completion", response_model=models.TaskPublic)
 async def update_completed(
-    session: SessionDep, task_id: int, task: TaskUpdateCompleted
+    session: SessionDep, task_id: int, task: models.TaskUpdateCompleted
 ):
-    task_to_update = session.get(Task, task_id)
+    task_to_update = session.get(models.Task, task_id)
 
     if task_to_update is None:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -294,9 +289,10 @@ async def update_completed(
     return task_to_update
 
 
-@app.patch("/tasks/{task_id}/", response_model=TaskPublic)
-async def update_task(session: SessionDep, task_id: int, task: TaskUpdate):
-    task_to_update = session.get(Task, task_id)
+# Change an existing task
+@app.patch("/tasks/{task_id}/", response_model=models.TaskPublic)
+async def update_task(session: SessionDep, task_id: int, task: models.TaskUpdate):
+    task_to_update = session.get(models.Task, task_id)
     if not task_to_update:
         raise HTTPException(status_code=404, detail="Task not found")
     new_data = task.model_dump(exclude_unset=True)
@@ -312,10 +308,8 @@ async def update_task(session: SessionDep, task_id: int, task: TaskUpdate):
 # }}}
 
 
-#
 def main():
     create_everything()
-    add_tasks()
 
 
 if __name__ == "__main__":

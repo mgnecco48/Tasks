@@ -10,21 +10,38 @@ import (
 )
 
 const (
-	Url_base string = "http://100.99.22.62:8000/tasks/"
+	// Url_base string = "http://179.198.222.169:8123/tasks/"
+	Url_base string = "http://127.0.0.1:8000/tasks/"
 )
 
 type model struct {
 	tasks           []Task
+	lists           []List
+	currentList     int
 	cursor          int
 	err             error
 	textInput       textinput.Model
 	inserting       bool
 	modifying       bool
-	focusedParentId *int
+	showLists       bool
 	showError       bool
 	showHelp        bool
+	focusedParentId *int
 	width           int
 	height          int
+}
+
+type List struct {
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	Desc      string `json:"description"`
+	UpdatedAt string `json:"updated_at"`
+	CreatedAt string `json:"created_at"`
+}
+
+type ListCreate struct {
+	Name string `json:"name"`
+	Desc string `json:"description"`
 }
 
 type Task struct {
@@ -34,11 +51,13 @@ type Task struct {
 	IsCompleted bool   `json:"is_completed"`
 	ParentId    *int   `json:"parent_id"`
 	Children    []Task `json:"children"`
+	List        string `json:"list_id"`
 }
 
 type TaskCreate struct {
 	Body     string `json:"body"`
 	ParentId *int   `json:"parent_id"`
+	List     string `json:"list"`
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -50,7 +69,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, getTasks
+		return m, tea.Batch(getTasks, getLists)
 
 	case taskMsg:
 		m.tasks = []Task(msg)
@@ -61,6 +80,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.cursor >= len(rows) {
 			m.cursor = len(rows) - 1
 		}
+		return m, nil
+
+	case listMsg:
+		m.lists = []List(msg)
+		m.currentList = 0
 		return m, nil
 
 	case errMsg:
@@ -138,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textInput, cmd = m.textInput.Update(msg)
 		} else if m.showError {
 			switch msg.String() {
-			case "esc", "enter":
+			case "esc", "enter", "q":
 				m.showError = false
 				return m, nil
 			}
@@ -204,6 +228,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "R":
 				return m, getTasks
 
+			case "L":
+				m.showLists = !m.showLists
+				return m, nil
+
 			case "?":
 				m.showHelp = !m.showHelp
 				return m, nil
@@ -225,8 +253,11 @@ func (m model) View() tea.View {
 	if m.inserting || m.modifying {
 		insertingIcon = "\033[91m \033[0m"
 	}
-
-	tabText := fmt.Sprintf("TASKS %s", insertingIcon)
+	tabTitle := nicePrint("Loading...", titleStyle)
+	if m.currentList >= 0 && m.currentList < len(m.lists) {
+		tabTitle = m.lists[m.currentList].Name
+	}
+	tabText := fmt.Sprintf("%s %s", tabTitle, insertingIcon)
 	titleTab := nicePrint(tabText, titleStyle)
 	helpView := lipgloss.PlaceHorizontal(W, lipgloss.Center, m.helpMenu())
 
@@ -250,6 +281,22 @@ func (m model) View() tea.View {
 
 		background := lipgloss.NewLayer(lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox))
 		popUp := lipgloss.NewLayer(helpBox).X(Xpos).Y(Ypos).Z(1)
+		comp := lipgloss.NewCompositor(background, popUp)
+		screen := comp.Render()
+		v := tea.NewView(screen)
+		v.AltScreen = true
+		return v
+
+	} else if m.showLists {
+		taskBox += nicePrint(m.normalView(), todoBoxStyle.Width(W).Height(H-lipgloss.Height(titleTab)-1).Faint(true))
+		listBox := nicePrint(m.listView(), ListsBoxStyle.Blink(true))
+
+		boxWidth, boxHeight := lipgloss.Size(listBox)
+		Xpos := (W / 2) - (boxWidth / 2)
+		Ypos := (H / 2) - (boxHeight / 2)
+
+		background := lipgloss.NewLayer(lipgloss.JoinVertical(lipgloss.Left, titleTab, taskBox))
+		popUp := lipgloss.NewLayer(listBox).X(Xpos).Y(Ypos).Z(1)
 		comp := lipgloss.NewCompositor(background, popUp)
 		screen := comp.Render()
 		v := tea.NewView(screen)

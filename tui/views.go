@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	"charm.land/lipgloss/v2"
 )
 
 func (m model) normalView() string {
@@ -13,6 +15,16 @@ func (m model) normalView() string {
 		} else {
 			s += printNiceRow(m, i, row) + "\n"
 		}
+	}
+	return s
+}
+
+func (m model) listView() string {
+	lists := m.lists
+	s := nicePrint("Your Lists", titleStyle.Align(lipgloss.Center)) + "\n\n"
+	for i, list := range lists {
+		s += nicePrint(fmt.Sprintf("%d-"+list.Name, i+1), listsStyle) + "\n"
+		s += nicePrint("-"+list.Desc, listsStyle.Faint(true).Italic(true)) + "\n"
 	}
 	return s
 }

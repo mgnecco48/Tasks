@@ -17,9 +17,9 @@ type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
 
+// Command
 type taskMsg []Task
 
-// Command
 func getTasks() tea.Msg {
 	tree_url := Url_base + "tree/"
 	c := &http.Client{Timeout: 10 * time.Second}
@@ -36,6 +36,27 @@ func getTasks() tea.Msg {
 	}
 
 	return taskMsg(tasks)
+}
+
+// Getting the lists command
+type listMsg []List
+
+func getLists() tea.Msg {
+	lists_url := "http://127.0.0.1:8000/lists/"
+	c := &http.Client{Timeout: 10 * time.Second}
+	resp, err := c.Get(lists_url)
+	if err != nil {
+		return errMsg{err}
+	}
+	defer resp.Body.Close()
+
+	var lists []List
+	if err := json.NewDecoder(resp.Body).Decode(&lists); err != nil {
+		return errMsg{err}
+
+	}
+
+	return listMsg(lists)
 }
 
 // Messages for completeing a task and updating it in the database

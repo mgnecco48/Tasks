@@ -21,9 +21,8 @@ var firstTabBorder = lipgloss.Border{
 
 var titleStyle = lipgloss.NewStyle().
 	Bold(true).
-	Border(firstTabBorder).BorderBottom(false).
-	BorderForeground(lipgloss.Color("#00e5ee")).
-	Foreground(lipgloss.Color("#00e5ee")).
+	Background(lipgloss.Color("#00e5ee")).
+	Foreground(lipgloss.Color("#111111")).
 	AlignHorizontal(lipgloss.Center).
 	Padding(0, 1)
 
@@ -50,3 +49,11 @@ var helpBoxStyle = helpStyle.
 	BorderForeground(lipgloss.Color("#00e5ee")).
 	Padding(1, 1, 0, 1).
 	Align(lipgloss.Left)
+
+var ListsBoxStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("#00e5ee")).
+	Padding(0, 1, 0, 1)
+
+var listsStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.White)
