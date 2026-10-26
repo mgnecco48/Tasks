@@ -11,24 +11,26 @@ type key struct {
 }
 
 var (
-	Up            = key{"k/↑", "move-up"}
-	Down          = key{"j/↓", "move-down"}
-	Quit          = key{"q", "quit"}
-	Help          = key{"?", "toggle help"}
-	DeleteTask    = key{"D", "delete focused task"}
-	NewParentTask = key{"N", "new main task"}
-	NewChildTask  = key{"A", "new child task"}
-	ModifyTask    = key{"M", "modify focused task"}
-	Esc           = key{"Esc", "cancel"}
-	NormalEnter   = key{"Enter", "toggle completion"}
-	InsertEnter   = key{"Enter", "save"}
-	HelpExit      = key{"Esc/?/q", "toggle help"}
-	Refresh       = key{"R", "refresh database"}
+	Up             = key{"k/↑", "move-up"}
+	Down           = key{"j/↓", "move-down"}
+	Quit           = key{"q", "quit"}
+	Help           = key{"?", "toggle help"}
+	DeleteTask     = key{"D", "delete focused task"}
+	NewParentTask  = key{"N", "new main task"}
+	NewChildTask   = key{"A", "new child task"}
+	ModifyTask     = key{"M", "modify focused task"}
+	Esc            = key{"Esc", "cancel"}
+	NormalEnter    = key{"Enter", "toggle completion"}
+	InsertEnter    = key{"Enter", "save"}
+	ChangeList     = key{"L", "change List"}
+	ChangePriority = key{"P", "change task priority"}
+	HelpExit       = key{"Esc/?/q", "toggle help"}
+	Refresh        = key{"R", "refresh database"}
 )
 
 func (m model) ShortHelp() []key {
 	if m.inserting || m.modifying {
-		return []key{Esc, InsertEnter}
+		return []key{Esc, InsertEnter, ChangeList}
 	} else {
 		return []key{Up, Down, Quit, Help}
 	}
@@ -41,7 +43,10 @@ func (m model) LongHelp() []key {
 		Quit,
 		DeleteTask,
 		ModifyTask,
-		NewParentTask, NewChildTask,
+		ChangePriority,
+		NewParentTask,
+		NewChildTask,
+		ChangeList,
 		Refresh,
 		NormalEnter,
 		HelpExit,

@@ -169,7 +169,7 @@ async def get_all_tasks(session: SessionDep):
 
 # Cerate a new task
 @app.post("/tasks/", response_model=models.TaskPublic)
-async def create_task(session: SessionDep, task: models.TaskInsert):
+async def create_task(session: SessionDep, task: models.TaskCreate):
     # Checking if a parent id was passed, and if that parent actually exists
     if task.parent_id is not None:
         parent = session.get(models.Task, task.parent_id)

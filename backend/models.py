@@ -72,9 +72,9 @@ class TaskPublic(TaskBase):
     parent_id: int | None
 
 
-class TaskInsert(TaskBase):
+class TaskCreate(TaskBase):
     parent_id: int | None = None
-    list_id: int = 1
+    list_id: int
 
 
 class TaskUpdateCompleted(SQLModel):
@@ -85,6 +85,7 @@ class TaskUpdate(SQLModel):
     body: str | None = None
     extra_details: str | None = None
     priority: int | None = Field(default=3, ge=1, le=3)
+    list_id: int | None = None
 
 
 class TaskTreeNode(TaskBase):

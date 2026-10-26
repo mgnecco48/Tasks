@@ -11,10 +11,11 @@ func initialModel() model {
 
 	return model{
 		tasks:     []Task{},
+		lists:     []List{},
 		textInput: ti,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return getTasks
+	return tea.Batch(getTasks, getLists)
 }
